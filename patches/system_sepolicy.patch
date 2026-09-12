@@ -2,6 +2,23 @@ diff --git a/private/recovery.te b/private/recovery.te
 index 2dba93b..689e573 100644
 --- a/private/recovery.te
 +++ b/private/recovery.te
+@@ -3,6 +3,16 @@ typeattribute recovery coredomain;
+ # The allow rules are only included in the recovery policy.
+ # Otherwise recovery is only allowed the domain rules.
+ recovery_only(`
++  # TWRP links vold into recovery, but fscrypt_prepare_user_storage delegates
++  # directory relabeling to this helper. Run it in its normal confined domain.
++  # Ramdisk executables are rootfs-labeled; FsCrypt selects the destination
++  # context explicitly through the ForkExecvp context parameter.
++  domain_trans(recovery, rootfs, vold_prepare_subdirs)
++  allow recovery self:process setexec;
++  set_prop(recovery, twrp_prop)
++  allow vold_prepare_subdirs recovery:fd use;
++  allow vold_prepare_subdirs recovery:fifo_file { read write };
++
+   # Reboot the device
+   set_prop(recovery, powerctl_prop)
+ 
 @@ -47,4 +47,19 @@ recovery_only(`
  
    # Needed to read bootconfig parameters through libfs_mgr
@@ -22,6 +39,30 @@ index 2dba93b..689e573 100644
 +  get_prop(recovery, vendor_security_patch_level_prop)
 +  get_prop(recovery, keystore_config_prop)
  ')
+diff --git a/private/property.te b/private/property.te
+index 2d030ab..bb0636a 100644
+--- a/private/property.te
++++ b/private/property.te
+@@ -3,6 +3,7 @@ system_internal_prop(adbd_prop)
+ system_internal_prop(apexd_payload_metadata_prop)
+ system_internal_prop(ctl_snapuserd_prop)
+ system_internal_prop(crashrecovery_prop)
++system_internal_prop(twrp_prop)
+ system_internal_prop(device_config_core_experiments_team_internal_prop)
+ system_internal_prop(device_config_lmkd_native_prop)
+ system_internal_prop(device_config_mglru_native_prop)
+diff --git a/private/property_contexts b/private/property_contexts
+index 1ddde23..411e3fd 100644
+--- a/private/property_contexts
++++ b/private/property_contexts
+@@ -784,6 +784,7 @@ ro.rebootescrow.device u:object_r:rebootescrow_hal_prop:s0 exact string
+ ro.recovery.usb.vid          u:object_r:recovery_usb_config_prop:s0 exact string
+ ro.recovery.usb.adb.pid      u:object_r:recovery_usb_config_prop:s0 exact string
+ ro.recovery.usb.fastboot.pid u:object_r:recovery_usb_config_prop:s0 exact string
++twrp.                         u:object_r:twrp_prop:s0 prefix string
+ 
+ ro.storage_manager.enabled     u:object_r:storagemanager_config_prop:s0 exact bool
+ ro.storage_manager.show_opt_in u:object_r:storagemanager_config_prop:s0 exact bool
 diff --git a/public/domain.te b/public/domain.te
 index 0a2a5e5..4ada1a2 100644
 --- a/public/domain.te
@@ -38,6 +79,14 @@ index 0a2a5e5..4ada1a2 100644
  # The service managers are only allowed to access their own device node
  neverallow servicemanager hwbinder_device:chr_file no_rw_file_perms;
  neverallow servicemanager vndbinder_device:chr_file no_rw_file_perms;
+@@ -875,6 +876,7 @@ full_treble_only(`
+     coredomain
+     -data_between_core_and_vendor_violators # TODO(b/34980020) Remove once all violators have been cleaned up
+     -init
++    -recovery # TWRP prepares and verifies /data/vendor_de during FBE setup
+     -vold # vold creates per-user storage for both system and vendor
+     -vold_prepare_subdirs
+     } {
 diff --git a/public/hal_keymaster.te b/public/hal_keymaster.te
 index 3e164ad..4468d60 100644
 --- a/public/hal_keymaster.te

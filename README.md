@@ -16,12 +16,15 @@ the recovery ramdisk fragment inside `vendor_boot`.
 - Beanpod Keymaster 4.1 + Microtrust TEEI + `keystore2`
 - Metadata encryption unwrap (`dm-default-key` `/dev/block/mapper/userdata`)
 - TWRP mounts `/data` as f2fs from that mapper
+- User-0 DE key installation and `fscrypt_init_user0` complete under enforcing
+- TWRP enumerates user 0 and enters the real CE credential flow
 
 ## What does not work yet
 
-- `fscrypt_init_user0` still fails, so FBE **filenames** under
-  `/data/media/0` stay encoded. Do not treat this as a finished
-  decrypting recovery.
+- Credential-encrypted storage still needs a live test with the tablet's real
+  PIN/password/pattern. The default credential correctly fails, so filenames
+  remain encoded until that test succeeds. Do not treat this as a finished
+  decrypting recovery yet.
 - Do not format `/data` or `/metadata`. Slot B is the stock fallback;
   flash experimental images to **slot A only**.
 
@@ -31,7 +34,7 @@ Known-good touch-only fallback SHA-256 (no crypto):
 
 Current experimental crypto image SHA-256:
 
-`49cc3653bed7723aa58a16eaf867019aaf6b8929fdb6104ada328c48948aeedf`
+`c34feb3189cd84dcb6d6c65f42dcc39ea934f54d0a9e496dd1060888ec66c4eb`
 
 Size of a packed `vendor_boot` image is exactly 67,108,864 bytes.
 
@@ -69,6 +72,7 @@ in `patches/BASE_REVS.txt`. They cover:
 | `system/logging` | logd must not FATAL on missing task profiles / already-true props |
 | `system/security` | `libkm_compat` talks to HIDL Keymaster 4.1 via `defaultServiceManager1_2()` |
 | `system/sepolicy` | recovery owns Binder + Keymaster/keystore2 + metadata/FBE ioctls |
+| `system/vold` | non-secret user-0 FBE phase diagnostics for enforcing recovery bring-up |
 
 ## Build
 
@@ -116,6 +120,13 @@ fastboot reboot recovery
 Do not flash `vendor_boot_b`. Do not `fastboot -w`, format `/data`, or
 format `/metadata`.
 
+The stock `vbmeta` hashes `vendor_boot`. A TWRP `vendor_boot` fails that
+check, so LK shows yellow-state "dm-verity corruption" and waits for the
+power button (or power-cycles). This bootloader still treats an unsigned
+or test-key `vbmeta` as `ERROR_VERIFICATION`, so disabling AVB flags does
+not skip that screen. Press power once per recovery boot. Do not flash
+`vbmeta_b`.
+
 ## Layout notes that will bite you
 
 - Stock `/data` is FBE v2 with metadata encryption:
@@ -126,6 +137,10 @@ format `/metadata`.
   so vendor `libc++` is loaded.
 - `vendor/*.prop` cannot override `ro.build.*` (partition property
   rules). `/prop.default` is the system source that Configure reads.
+- `ro.crypto.type=file` must be present in initial `/prop.default`; setting it
+  after `/data` is mounted is too late because it is read-only.
+- Recovery runs vold's `vold_prepare_subdirs` helper in its normal confined
+  SELinux domain even though the ramdisk executable is labeled `rootfs`.
 - TWRP cannot set `ro.crypto.fs_crypto_blkdev` after boot; the recovery
   binary falls back to `/dev/block/mapper/userdata`.
 

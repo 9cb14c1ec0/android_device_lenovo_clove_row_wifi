@@ -36,4 +36,5 @@ apply_one build/make build_make.patch
 apply_one system/logging system_logging.patch
 apply_one system/security system_security.patch
 apply_one system/sepolicy system_sepolicy.patch
+apply_one system/vold system_vold.patch
 echo "all patches applied"

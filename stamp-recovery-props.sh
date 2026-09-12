@@ -15,3 +15,18 @@ sed -i \
     "$prop"
 grep -q '^ro.build.version.release=15$' "$prop"
 grep -q '^ro.build.version.security_patch=2026-05-05$' "$prop"
+
+# TWRP discovers FBE only after /data is mounted, which is too late to set
+# read-only ro.crypto.* properties.  vold's IsFbeEnabled() reads this property
+# while loading the user DE keys, so it must be present in the initial system
+# property source.
+for crypto_prop in ro.crypto.state=encrypted ro.crypto.type=file; do
+    name=${crypto_prop%%=*}
+    if grep -q "^${name}=" "$prop"; then
+        sed -i "s/^${name}=.*/${crypto_prop}/" "$prop"
+    else
+        printf '%s\n' "$crypto_prop" >> "$prop"
+    fi
+done
+grep -q '^ro.crypto.state=encrypted$' "$prop"
+grep -q '^ro.crypto.type=file$' "$prop"

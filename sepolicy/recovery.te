@@ -21,6 +21,11 @@ allow recovery graphics_device:chr_file rw_file_perms;
 allow recovery self:binder set_context_mgr;
 selinux_check_access(recovery)
 
+# TWRP performs vold's FBE setup in-process. Stock /data directories carry
+# per-user MLS categories (for example c512,c768), so recovery must have the
+# same MLS override as the normal vold domain to inspect and prepare them.
+typeattribute recovery mlstrustedsubject;
+
 # After becoming context manager, servicemanager must publish "manager"
 # and both managers must set their *.ready properties. TWRP recovery
 # and keystore2 wait on those properties.
@@ -51,9 +56,15 @@ allow recovery kmsg_device:chr_file { read open };
 
 # logd is started as recovery so HAL/keystore2 CHECK text is readable.
 allow recovery logd_exec:file { execute execute_no_trans entrypoint getattr read open };
+# logd removes stale sockets and creates its control socket under /dev/socket.
+# Without directory write access it exits immediately and init crash-loops it,
+# losing the vold/Keymaster diagnostics needed during FBE bring-up.
+allow recovery socket_device:dir { search write add_name remove_name };
 allow recovery socket_device:sock_file write;
+allow recovery logd_socket:sock_file create_file_perms;
 allow recovery logdw_socket:sock_file write;
 allow recovery logdr_socket:sock_file rw_file_perms;
+allow recovery pstorefs:dir search;
 allow recovery self:unix_dgram_socket sendto;
 allow recovery self:global_capability_class_set { setuid setgid audit_control };
 allow recovery self:global_capability2_class_set syslog;
@@ -70,7 +81,7 @@ allow recovery vold_metadata_file:file r_file_perms;
 # Decrypt_FBE_DE needs /data/unencrypted/key. Do not allow the
 # whole data_file_type attribute; that hits platform neverallows.
 allow recovery system_data_root_file:dir { r_dir_perms ioctl };
-allow recovery system_data_file:dir { r_dir_perms ioctl };
+allow recovery system_data_file:dir { r_dir_perms ioctl mounton };
 allow recovery unencrypted_data_file:dir { r_dir_perms ioctl };
 allow recovery unencrypted_data_file:file create_file_perms;
 allow recovery media_userdir_file:dir r_dir_perms;
@@ -79,11 +90,15 @@ allow recovery media_rw_data_file:file r_file_perms;
 allow recovery vold_data_file:dir create_dir_perms;
 allow recovery vold_data_file:file create_file_perms;
 allow recovery system_userdir_file:dir r_dir_perms;
+allow recovery user_profile_root_file:dir r_dir_perms;
+allow recovery vendor_userdir_file:dir r_dir_perms;
+allow recovery vendor_data_file:dir { r_dir_perms ioctl };
 allowxperm recovery {
     system_data_root_file
     system_data_file
     unencrypted_data_file
     media_rw_data_file
+    vendor_data_file
 }:dir ioctl {
     FS_IOC_GET_ENCRYPTION_POLICY
     FS_IOC_SET_ENCRYPTION_POLICY
