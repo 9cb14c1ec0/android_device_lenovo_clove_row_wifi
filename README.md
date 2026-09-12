@@ -120,12 +120,44 @@ fastboot reboot recovery
 Do not flash `vendor_boot_b`. Do not `fastboot -w`, format `/data`, or
 format `/metadata`.
 
-The stock `vbmeta` hashes `vendor_boot`. A TWRP `vendor_boot` fails that
-check, so LK shows yellow-state "dm-verity corruption" and waits for the
-power button (or power-cycles). This bootloader still treats an unsigned
-or test-key `vbmeta` as `ERROR_VERIFICATION`, so disabling AVB flags does
-not skip that screen. Press power once per recovery boot. Do not flash
-`vbmeta_b`.
+The stock `vbmeta` hashes `vendor_boot`. A TWRP `vendor_boot` therefore makes
+stock LK show a yellow-state "dm-verity corruption" warning and wait for the
+power button (or power-cycle). Pressing power once per recovery boot is the
+safest option.
+
+### Optional patched LK (slot A only)
+
+The beta release also includes
+`lk_a-dmverity-patched-TB305FU-c4fe7ca1.bin`. It patches the verification
+function prologue at file offset `0x69db8` from `30 b5 83 b0` to
+`00 20 70 47` (`movs r0, #0; bx lr`). This skips the yellow dm-verity gate;
+the normal orange unlocked-bootloader delay may still appear.
+
+Flashing LK is riskier than flashing recovery. This 2 MiB image is only for
+the **TB305FU / clove_row_wifi** firmware used by this port. Keep a matching
+stock `lk_a` image available before proceeding. Verify both downloads with
+the release `SHA256SUMS`, confirm the device and slot, and flash only slot A:
+
+```bash
+sha256sum -c SHA256SUMS
+fastboot getvar product          # must be clove_row_wifi
+fastboot getvar current-slot     # must be a
+fastboot flash lk_a lk_a-dmverity-patched-TB305FU-c4fe7ca1.bin
+fastboot flash vendor_boot_a vendor_boot-twrp-TB305FU-beta2-c34feb31.img
+fastboot reboot recovery
+```
+
+If the LK flash command fails, do not reboot: restore the matching stock image
+while fastboot is still available. To restore later:
+
+```bash
+fastboot flash lk_a lk_a-stock.bin
+fastboot reboot
+```
+
+Do not flash `lk_b` or `vbmeta_b`; they are the stock fallback. This bootloader
+still treats unsigned or test-key `vbmeta` as `ERROR_VERIFICATION`, so AVB flag
+changes do not replace the LK patch.
 
 ## Layout notes that will bite you
 
