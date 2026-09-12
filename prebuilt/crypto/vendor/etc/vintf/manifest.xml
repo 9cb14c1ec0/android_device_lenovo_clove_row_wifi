@@ -1,0 +1,106 @@
+<!--
+    Input:
+        device/mediatek/vendor/common/project_manifest/manifest_isphal.xml
+        device/mediatek/vendor/common/project_manifest/manifest_cameraprovider.xml
+        device/mediatek/vendor/common/project_manifest/manifest_postproc.xml
+        device/mediatek/vendor/common/project_manifest/manifest_audio.xml
+        device/mediatek/vendor/common/project_manifest/manifest_em.xml
+        device/mediatek/vendor/common/project_manifest/manifest_km41.xml
+        device/mediatek/vendor/common/project_manifest/manifest_log.xml
+        device/mediatek/vendor/common/project_manifest/manifest_aee.xml
+        device/mediatek/vendor/common/project_manifest/manifest_boot.xml
+        device/mediatek/vendor/common/project_manifest/manifest_pq.xml
+        device/mediatek/vendor/common/project_manifest/manifest_mmservice.xml
+        device/mediatek/vendor/common/project_manifest/manifest_mmagent.xml
+        device/mediatek/common/project_manifest/manifest_dmc.xml
+        device/mediatek/common/project_manifest/manifest_apmonitor.xml
+        device/mediatek/vendor/common/project_manifest/manifest_composer.xml
+        device/mediatek/vendor/common/manifest.xml
+        device/mediatek/vendor/common/manifest_target_level_s.xml
+-->
+<manifest version="8.0" type="device" target-level="6">
+    <hal format="aidl">
+        <name>android.hardware.camera.provider</name>
+        <version>3</version>
+        <fqname>ICameraProvider/internal/0</fqname>
+    </hal>
+    <hal format="hidl">
+        <name>android.hardware.keymaster</name>
+        <transport>hwbinder</transport>
+        <fqname>@4.1::IKeymasterDevice/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>android.hardware.soundtrigger3</name>
+        <version>2</version>
+        <fqname>ISoundTriggerHw/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.aee</name>
+        <fqname>IAee/AEE</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.apmonitor</name>
+        <fqname>IApmService/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.atci</name>
+        <fqname>IAtcid/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.audio</name>
+        <fqname>IMtkAudio/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.camera.atms</name>
+        <fqname>IATMs/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.camera.bgservice</name>
+        <fqname>IBGService/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.camera.isphal</name>
+        <fqname>IISPModule/internal/1</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.camera.postproc</name>
+        <fqname>IPostDevice/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.composer_ext</name>
+        <fqname>IComposerExt/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.dmc</name>
+        <fqname>IDmcService/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.log</name>
+        <fqname>ILog/ATMWiFiHidlServer</fqname>
+        <fqname>ILog/ConnsysFWHidlServer</fqname>
+        <fqname>ILog/LoggerHidlServer</fqname>
+        <fqname>ILog/MobileLogHidlServer</fqname>
+        <fqname>ILog/ModemLogHidlServer</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.mmagent</name>
+        <fqname>IMMAgent/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.mms</name>
+        <fqname>IMms/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.nvram</name>
+        <fqname>INvram/default</fqname>
+    </hal>
+    <hal format="aidl">
+        <name>vendor.mediatek.hardware.pq_aidl</name>
+        <version>7</version>
+        <fqname>IPictureQuality_AIDL/default</fqname>
+    </hal>
+    <sepolicy>
+        <version>202404</version>
+    </sepolicy>
+    <kernel target-level="6"/>
+</manifest>

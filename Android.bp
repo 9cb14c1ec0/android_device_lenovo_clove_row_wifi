@@ -1,0 +1,23 @@
+prebuilt_etc {
+    name: "lenovo_touch_compat.ko.recovery",
+    src: "prebuilt/modules/lenovo_touch_compat.ko",
+    filename: "lenovo_touch_compat.ko",
+    sub_dir: "lenovo/modules",
+    recovery: true,
+}
+
+prebuilt_etc {
+    name: "touch_common.ko.recovery",
+    src: "prebuilt/modules/touch_common.ko",
+    filename: "touch_common.ko",
+    sub_dir: "lenovo/modules",
+    recovery: true,
+}
+
+prebuilt_etc {
+    name: "ilitek_spi.ko.recovery",
+    src: "prebuilt/modules/ilitek_spi.ko",
+    filename: "ilitek_spi.ko",
+    sub_dir: "lenovo/modules",
+    recovery: true,
+}

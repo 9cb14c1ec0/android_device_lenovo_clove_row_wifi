@@ -1,0 +1,110 @@
+# The device-specific recovery loader inserts the Lenovo touch compatibility
+# shim and the two stock touch modules in a controlled order.
+allow recovery self:global_capability_class_set sys_module;
+allow recovery rootfs:system module_load;
+allow recovery self:process execmem;
+allow recovery proc_modules:file r_file_perms;
+
+# The stock MediaTek DRM node is /dev/dri/card0. It is labeled
+# graphics_device by this device tree's file_contexts.
+allow recovery graphics_device:dir r_dir_perms;
+allow recovery graphics_device:chr_file rw_file_perms;
+
+# TWRP starts servicemanager, hwservicemanager, and keystore2 with
+# seclabel u:r:recovery:s0. They therefore need the recovery domain to
+# own the Binder context manager and to query SELinux access decisions.
+# Live AVC denials on the crypto image:
+#   recovery -> selinuxfs:dir read (/sys/fs/selinux/perms)
+#   recovery -> binder set_context_mgr
+# Do not grant vndbinder here. recovery is a coredomain, and stock
+# Beanpod Keymaster 4.1 is HIDL (hwbinder), not VendorBinder.
+allow recovery self:binder set_context_mgr;
+selinux_check_access(recovery)
+
+# After becoming context manager, servicemanager must publish "manager"
+# and both managers must set their *.ready properties. TWRP recovery
+# and keystore2 wait on those properties.
+allow recovery service_manager_service:service_manager { add find };
+set_prop(recovery, servicemanager_prop)
+set_prop(recovery, hwservicemanager_prop)
+
+# keystore2, recovery, and hwservicemanager all run as recovery and
+# must Binder-call each other. binder_use() only covers calls to
+# servicemanager, not same-domain calls.
+allow recovery self:binder { call transfer };
+
+# keystore2 registers and looks up android.security.compat, the
+# Keymaster 4.1 compatibility wrapper used on this Beanpod device.
+allow recovery keystore_compat_hal_service:service_manager { add find };
+
+# Beanpod HIDL Keymaster 4.1 registerAsService / getService. Do not
+# use hal_server_domain(recovery, hal_keymaster); that hits HAL
+# neverallows. Platform hal_keymaster.te excludes recovery from the
+# add neverallow so this allow can exist.
+allow recovery hal_keymaster_hwservice:hwservice_manager { add find };
+allow recovery hidl_base_hwservice:hwservice_manager add;
+allow recovery hidl_manager_hwservice:hwservice_manager find;
+
+# teei_wait_unlock.sh polls dmesg for "Keymaster Unlocked". Platform
+# recovery.te only allows write to kmsg.
+allow recovery kmsg_device:chr_file { read open };
+
+# logd is started as recovery so HAL/keystore2 CHECK text is readable.
+allow recovery logd_exec:file { execute execute_no_trans entrypoint getattr read open };
+allow recovery socket_device:sock_file write;
+allow recovery logdw_socket:sock_file write;
+allow recovery logdr_socket:sock_file rw_file_perms;
+allow recovery self:unix_dgram_socket sendto;
+allow recovery self:global_capability_class_set { setuid setgid audit_control };
+allow recovery self:global_capability2_class_set syslog;
+allow recovery kernel:system { syslog_read syslog_mod };
+allow recovery proc_kmsg:file r_file_perms;
+set_prop(recovery, logd_prop);
+
+# TWRP unwraps metadata FBE in-process (no vold). The key directory
+# is labeled vold_metadata_file; platform neverallows exclude recovery.
+allow recovery vold_metadata_file:dir r_dir_perms;
+allow recovery vold_metadata_file:file r_file_perms;
+
+# After the mapper is mounted, /data carries stock labels.
+# Decrypt_FBE_DE needs /data/unencrypted/key. Do not allow the
+# whole data_file_type attribute; that hits platform neverallows.
+allow recovery system_data_root_file:dir { r_dir_perms ioctl };
+allow recovery system_data_file:dir { r_dir_perms ioctl };
+allow recovery unencrypted_data_file:dir { r_dir_perms ioctl };
+allow recovery unencrypted_data_file:file create_file_perms;
+allow recovery media_userdir_file:dir r_dir_perms;
+allow recovery media_rw_data_file:dir { r_dir_perms ioctl };
+allow recovery media_rw_data_file:file r_file_perms;
+allow recovery vold_data_file:dir create_dir_perms;
+allow recovery vold_data_file:file create_file_perms;
+allow recovery system_userdir_file:dir r_dir_perms;
+allowxperm recovery {
+    system_data_root_file
+    system_data_file
+    unencrypted_data_file
+    media_rw_data_file
+}:dir ioctl {
+    FS_IOC_GET_ENCRYPTION_POLICY
+    FS_IOC_SET_ENCRYPTION_POLICY
+    FS_IOC_ADD_ENCRYPTION_KEY
+    FS_IOC_REMOVE_ENCRYPTION_KEY
+    FS_IOC_GET_ENCRYPTION_KEY_STATUS
+};
+
+# keystore2 and the recovery UI both run as recovery and must
+# publish / look up the keystore2 Binder services.
+allow recovery keystore_service:service_manager { add find };
+allow recovery apc_service:service_manager { add find };
+allow recovery authorization_service:service_manager { add find };
+allow recovery keystore_maintenance_service:service_manager { add find };
+allow recovery keystore_metrics_service:service_manager { add find };
+allow recovery legacykeystore_service:service_manager { add find };
+
+# Microtrust TEE character devices used by teei_daemon and the HAL.
+allow recovery teei_client_device:chr_file rw_file_perms;
+allow recovery teei_config_device:chr_file rw_file_perms;
+allow recovery teei_vfs_device:chr_file rw_file_perms;
+allow recovery teei_rpmb_device:chr_file rw_file_perms;
+allow recovery teei_fp_device:chr_file rw_file_perms;
+allow recovery ut_keymaster_device:chr_file rw_file_perms;

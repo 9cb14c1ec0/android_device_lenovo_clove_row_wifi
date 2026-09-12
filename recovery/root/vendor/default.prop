@@ -1,0 +1,10 @@
+# Later property files override earlier ones in recovery, including ro.*.
+# /system/build.prop is TWRP 14 / 2024-09-05; this file loads after it.
+# Beanpod Configure is first-write per TEE session, so these must match
+# the stock metadata key (OS 15, patch 2026-05) before the HAL starts.
+ro.build.version.release=15
+ro.build.version.release_or_codename=15
+ro.build.version.security_patch=2026-05-05
+ro.vendor.build.security_patch=2026-05-05
+ro.system.build.version.security_patch=2026-05-05
+ro.bootimage.build.version.security_patch=2026-05-05

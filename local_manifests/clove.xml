@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copy to <twrp-tree>/.repo/local_manifests/clove.xml before `repo sync`. -->
+<manifest>
+    <project name="9cb14c1ec0/android_device_lenovo_clove_row_wifi"
+             path="device/lenovo/clove_row_wifi"
+             remote="github"
+             revision="main" />
+</manifest>

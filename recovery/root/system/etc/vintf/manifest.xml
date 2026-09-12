@@ -1,0 +1,8 @@
+<!--
+  Framework HAL manifest. Fragments under
+  /system/etc/vintf/manifest/ are loaded only if this file exists.
+  Do not declare android.hidl.manager here: getService() then waits
+  for a named IServiceManager instance that hwservicemanager never
+  registers. keystore2 uses defaultServiceManager1_2() instead.
+-->
+<manifest version="1.0" type="framework" />

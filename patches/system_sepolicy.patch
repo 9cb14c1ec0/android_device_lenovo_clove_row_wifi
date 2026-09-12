@@ -1,0 +1,231 @@
+diff --git a/private/recovery.te b/private/recovery.te
+index 2dba93b..689e573 100644
+--- a/private/recovery.te
++++ b/private/recovery.te
+@@ -47,4 +47,19 @@ recovery_only(`
+ 
+   # Needed to read bootconfig parameters through libfs_mgr
+   allow recovery proc_bootconfig:file r_file_perms;
++
++  # TWRP decrypts metadata encryption in-process via keystore2.
++  # Both run as recovery, so they need the vold keystore2 namespace.
++  allow recovery vold_key:keystore2_key {
++    convert_storage_key_to_ephemeral
++    delete
++    get_info
++    manage_blob
++    rebind
++    req_forced_op
++    update
++    use
++  };
++  get_prop(recovery, vendor_security_patch_level_prop)
++  get_prop(recovery, keystore_config_prop)
+ ')
+diff --git a/public/domain.te b/public/domain.te
+index 0a2a5e5..4ada1a2 100644
+--- a/public/domain.te
++++ b/public/domain.te
+@@ -620,8 +620,9 @@ neverallow {
+   -update_engine
+ } system_block_device:blk_file { write append };
+ 
+-# Only (hw|vnd|)servicemanager should be able to register with binder as the context manager
+-neverallow { domain -servicemanager -hwservicemanager -vndservicemanager } *:binder set_context_mgr;
++# Only (hw|vnd|)servicemanager should be able to register with binder as the context manager.
++# Recovery is excluded because TWRP runs those daemons as u:r:recovery:s0.
++neverallow { domain -servicemanager -hwservicemanager -vndservicemanager -recovery } *:binder set_context_mgr;
+ # The service managers are only allowed to access their own device node
+ neverallow servicemanager hwbinder_device:chr_file no_rw_file_perms;
+ neverallow servicemanager vndbinder_device:chr_file no_rw_file_perms;
+diff --git a/public/hal_keymaster.te b/public/hal_keymaster.te
+index 3e164ad..4468d60 100644
+--- a/public/hal_keymaster.te
++++ b/public/hal_keymaster.te
+@@ -1,7 +1,13 @@
+ # HwBinder IPC from client to server
+ binder_call(hal_keymaster_client, hal_keymaster_server)
+ 
+-hal_attribute_hwservice(hal_keymaster, hal_keymaster_hwservice)
++# Expanded from hal_attribute_hwservice() so recovery can add/find
++# this hwservice without becoming a HAL server domain. TWRP runs the
++# stock Beanpod Keymaster 4.1 binary as u:r:recovery:s0.
++allow hal_keymaster_client hal_keymaster_hwservice:hwservice_manager find;
++allow hal_keymaster_server hal_keymaster_hwservice:hwservice_manager { add find };
++allow hal_keymaster_server hidl_base_hwservice:hwservice_manager add;
++neverallow { domain -hal_keymaster_server -recovery } hal_keymaster_hwservice:hwservice_manager add;
+ 
+ allow hal_keymaster tee_device:chr_file rw_file_perms;
+ allow hal_keymaster ion_device:chr_file r_file_perms;
+diff --git a/public/init.te b/public/init.te
+index 47b8603..c02f9f5 100644
+--- a/public/init.te
++++ b/public/init.te
+@@ -693,4 +693,4 @@ neverallow * init:process ptrace;
+ # init owns the root of /data
+ # TODO(b/140259336) We want to remove vendor_init
+ # TODO(b/141108496) We want to remove toolbox
+-neverallow { domain -init -toolbox -vendor_init -vold } system_data_root_file:dir { write add_name remove_name };
++neverallow { domain -init -toolbox -vendor_init -vold -recovery } system_data_root_file:dir { write add_name remove_name };
+diff --git a/public/keystore.te b/public/keystore.te
+index 7e964c2..4f6c66f 100644
+--- a/public/keystore.te
++++ b/public/keystore.te
+@@ -13,16 +13,27 @@ allow keystore keystore_data_file:dir create_dir_perms;
+ allow keystore keystore_data_file:notdevfile_class_set create_file_perms;
+ allow keystore keystore_exec:file { getattr };
+ 
+-add_service(keystore, keystore_service)
++# TWRP runs keystore2 as u:r:recovery:s0, so recovery must add
++# android.system.keystore2.IKeystoreService/default.
++allow keystore keystore_service:service_manager { add find };
++neverallow { domain -keystore -recovery } keystore_service:service_manager add;
+ allow keystore sec_key_att_app_id_provider_service:service_manager find;
+ allow keystore dropbox_service:service_manager find;
+ allow keystore remote_provisioning_service:service_manager find;
+-add_service(keystore, apc_service)
+-add_service(keystore, keystore_compat_hal_service)
+-add_service(keystore, authorization_service)
+-add_service(keystore, keystore_maintenance_service)
+-add_service(keystore, keystore_metrics_service)
+-add_service(keystore, legacykeystore_service)
++allow keystore apc_service:service_manager { add find };
++neverallow { domain -keystore -recovery } apc_service:service_manager add;
++# TWRP runs keystore2 as u:r:recovery:s0, so recovery must be able
++# to add the HIDL Keymaster 4.1 -> KeyMint compat service.
++allow keystore keystore_compat_hal_service:service_manager { add find };
++neverallow { domain -keystore -recovery } keystore_compat_hal_service:service_manager add;
++allow keystore authorization_service:service_manager { add find };
++neverallow { domain -keystore -recovery } authorization_service:service_manager add;
++allow keystore keystore_maintenance_service:service_manager { add find };
++neverallow { domain -keystore -recovery } keystore_maintenance_service:service_manager add;
++allow keystore keystore_metrics_service:service_manager { add find };
++neverallow { domain -keystore -recovery } keystore_metrics_service:service_manager add;
++allow keystore legacykeystore_service:service_manager { add find };
++neverallow { domain -keystore -recovery } legacykeystore_service:service_manager add;
+ 
+ # Check SELinux permissions.
+ selinux_check_access(keystore)
+diff --git a/public/recovery.te b/public/recovery.te
+index 324320b..d8ba128 100755
+--- a/public/recovery.te
++++ b/public/recovery.te
+@@ -147,25 +147,12 @@ recovery_only(`
+ ### neverallow rules
+ ###
+ 
+-# Recovery should never touch /data.
+-#
+-# In particular, if /data is encrypted, it is not accessible
+-# to recovery anyway.
+-#
+-# For now, we only enforce write/execute restrictions, as domain.te
+-# contains a number of read-only rules that apply to all
+-# domains, including recovery.
+-#
+-# TODO: tighten this up further.
++# AOSP recovery does not mount userdata. TWRP decrypts metadata FBE
++# and uses /data in-process as u:r:recovery:s0, so these neverallows
++# cannot apply here. Still forbid executing files from /data.
+ neverallow recovery {
+    data_file_type
+    -cache_file
+    -cache_recovery_file
+   with_native_coverage(`-method_trace_data_file')
+-}:file { no_w_file_perms no_x_file_perms };
+-neverallow recovery {
+-   data_file_type
+-   -cache_file
+-   -cache_recovery_file
+-  with_native_coverage(`-method_trace_data_file')
+-}:dir no_w_dir_perms;
++}:file execute;
+diff --git a/public/servicemanager.te b/public/servicemanager.te
+index 58153f7..07ffede 100644
+--- a/public/servicemanager.te
++++ b/public/servicemanager.te
+@@ -24,7 +24,11 @@ allow servicemanager vendor_service_contexts_file:file r_file_perms;
+ # nonplat_service_contexts only accessible on non full-treble devices
+ not_full_treble(`allow servicemanager vendor_service_contexts_file:file r_file_perms;')
+ 
+-add_service(servicemanager, service_manager_service)
++# add_service() also emits a neverallow that only servicemanager may
++# add this service. TWRP runs servicemanager as u:r:recovery:s0, so
++# recovery must be excluded from that neverallow.
++allow servicemanager service_manager_service:service_manager { add find };
++neverallow { domain -servicemanager -recovery } service_manager_service:service_manager add;
+ allow servicemanager dumpstate:fd use;
+ allow servicemanager dumpstate:fifo_file write;
+ 
+diff --git a/public/vold.te b/public/vold.te
+index ad6ef83..80eef8e 100644
+--- a/public/vold.te
++++ b/public/vold.te
+@@ -55,17 +55,20 @@ allowxperm vold data_file_type:dir ioctl {
+ };
+ 
+ # Only vold and init should ever set file-based encryption policies.
++# TWRP decrypts FBE in-process as recovery.
+ neverallowxperm {
+   domain
+   -vold
+   -init
+   -vendor_init
++  -recovery
+ } data_file_type:dir ioctl { FS_IOC_SET_ENCRYPTION_POLICY };
+ 
+ # Only vold should ever add/remove file-based encryption keys.
+ neverallowxperm {
+   domain
+   -vold
++  -recovery
+ } data_file_type:dir ioctl { FS_IOC_ADD_ENCRYPTION_KEY FS_IOC_REMOVE_ENCRYPTION_KEY FS_IOC_GET_ENCRYPTION_KEY_STATUS };
+ 
+ # Allow securely erasing crypto key files. F2FS_IOC_SEC_TRIM_FILE is
+@@ -296,6 +299,7 @@ neverallow {
+     domain
+     -vold
+     -vold_prepare_subdirs
++    -recovery
+ } vold_data_file:dir ~{ open create read getattr setattr search relabelfrom relabelto ioctl };
+ 
+ neverallow {
+@@ -303,12 +307,14 @@ neverallow {
+     -init
+     -vold
+     -vold_prepare_subdirs
++    -recovery
+ } vold_data_file:dir *;
+ 
+ neverallow {
+     domain
+     -init
+     -vold
++    -recovery
+ } vold_metadata_file:dir *;
+ 
+ neverallow {
+@@ -316,6 +322,7 @@ neverallow {
+     -kernel
+     -vold
+     -vold_prepare_subdirs
++    -recovery
+ } vold_data_file:notdevfile_class_set ~{ relabelto getattr };
+ 
+ neverallow {
+@@ -323,6 +330,7 @@ neverallow {
+     -init
+     -vold
+     -vold_prepare_subdirs
++    -recovery
+ } vold_metadata_file:notdevfile_class_set ~{ relabelto getattr };
+ 
+ neverallow {
+@@ -331,6 +339,7 @@ neverallow {
+     -kernel
+     -vold
+     -vold_prepare_subdirs
++    -recovery
+ } { vold_data_file vold_metadata_file }:notdevfile_class_set *;
+ 
+ neverallow { domain -vold -init } restorecon_prop:property_service set;

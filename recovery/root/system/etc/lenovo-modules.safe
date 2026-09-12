@@ -1,0 +1,4 @@
+# Phase 1: platform providers proven safe in a live recovery session.
+# Never add scp.ko here: its probe blocked recovery and exhausted boot attempts.
+mtk_cpuhp.ko
+mtk_cpuidle.ko

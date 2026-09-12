@@ -1,0 +1,34 @@
+# TB305FU touch stack, reconstructed from Lenovo's early-init module loader.
+#
+# Preconditions:
+#   * /vendor and /vendor_dlkm are mounted read-only.
+#   * /vendor/firmware/remoteproc_scp exists.
+#   * /vendor/firmware/ili9882U.bin exists.
+#   * lenovo-modules.safe and lenovo-modules.power have completed.
+#
+# This list is intentionally opt-in.  In particular, never retry it after an
+# scp timeout in the same boot: finit_module may remain blocked in the kernel.
+
+# Missing from the original power-stage experiment.  Lenovo's modules.dep
+# makes this a direct prerequisite of scp.ko.
+mtk-dvfsrc-helper.ko
+
+# Lenovo loads the mailbox/RPMSG transport immediately before scp.ko.  These
+# are not all represented in scp.ko's depends metadata, so preserve the stock
+# sequence explicitly.
+mtk-mbox.ko
+mtk_rpmsg_mbox.ko
+mtk_tinysys_ipi.ko
+scp.ko
+
+# Proximity/sensor bridge required by tpd_notify.
+sensorHub.ko
+alsps_common.ko
+alspshub.ko
+tpd_notify.ko
+
+# Display/vendor glue and the fitted touchscreen family.  The dump contains
+# ili9882U.bin and ILITEK_FW; do not probe chipone.ko in this path.
+hqsysfs.ko
+touch_common.ko
+ilitek_spi.ko

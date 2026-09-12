@@ -1,0 +1,3 @@
+/system/etc/lenovo/modules/lenovo_touch_compat.ko
+/system/etc/lenovo/modules/touch_common.ko
+/system/etc/lenovo/modules/ilitek_spi.ko

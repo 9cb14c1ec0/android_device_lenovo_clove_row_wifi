@@ -1,0 +1,19 @@
+# Phase 2: power/DVFS providers required by the sensor and touch stack.
+# Direct loading only; do not add scp.ko to this list.
+hwmon.ko
+mtk_power_gs_v1.ko
+mtk_dynamic_loading_throttling.ko
+mtk_mdpm_v1.ko
+mtk_pbm.ko
+mtk_battery_oc_throttling.ko
+mtk_low_battery_throttling.ko
+mediatek_static_power.ko
+sspm_v1.ko
+Upower.ko
+mtk_ppm_v3.ko
+connadp.ko
+mtk_gpu_hal.ko
+mtk_gpufreq_wrapper_legacy.ko
+mtk_gpufreq_mt6768.ko
+thermal_monitor.ko
+MTK_INTERNAL_SPM.ko

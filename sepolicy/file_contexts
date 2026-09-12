@@ -1,0 +1,13 @@
+/dev/dri(/.*)?    u:object_r:graphics_device:s0
+/dev/teei_client    u:object_r:teei_client_device:s0
+/dev/isee_tee0      u:object_r:teei_client_device:s0
+/dev/teei_config    u:object_r:teei_config_device:s0
+/dev/tz_vfs         u:object_r:teei_vfs_device:s0
+/dev/ut_keymaster   u:object_r:ut_keymaster_device:s0
+/dev/rpmb0          u:object_r:teei_rpmb_device:s0
+/dev/emmcrpmb0      u:object_r:teei_rpmb_device:s0
+/dev/teei_fp        u:object_r:teei_fp_device:s0
+/vendor/thh(/.*)?   u:object_r:system_file:s0
+/system/bin/teei_daemon    u:object_r:system_file:s0
+/system/bin/teei_bringup\.sh    u:object_r:system_file:s0
+/system/bin/android\.hardware\.keymaster@4\.1-service\.beanpod    u:object_r:system_file:s0

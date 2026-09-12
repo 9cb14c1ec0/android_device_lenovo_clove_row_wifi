@@ -1,0 +1,5 @@
+426b747737e7ce9e9e17da5b4d2ba883f296aec7  bootable/recovery
+506df226dd003a364916b6b3ee1eb3bf9064f97f  build/make
+153aeb8c89b0d499cda7e39a0f297f34836b4e19  system/logging
+9ec5fc2c0a4a82e46313d32d0616596a94655ab0  system/security
+5e74aa10bef5df5451c9dfdf3fb93d13d58f0de5  system/sepolicy

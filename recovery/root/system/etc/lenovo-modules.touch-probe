@@ -1,0 +1,9 @@
+# Diagnostic phase only. Direct load attempts establish the unresolved-symbol
+# boundary without recursively loading or touching scp.ko.
+sensorHub.ko
+alsps_common.ko
+alspshub.ko
+tpd_notify.ko
+chipone.ko
+touch_common.ko
+ilitek_spi.ko

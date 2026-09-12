@@ -1,0 +1,13 @@
+<!--
+  Device HAL manifest. libvintf only loads
+  /vendor/etc/vintf/manifest/*.xml fragments after this file exists.
+  The Keymaster 4.1 HAL is declared here so hwservicemanager
+  getTransport() returns HWBINDER and registerAsService can succeed.
+-->
+<manifest version="1.0" type="device">
+    <hal format="hidl">
+        <name>android.hardware.keymaster</name>
+        <transport>hwbinder</transport>
+        <fqname>@4.1::IKeymasterDevice/default</fqname>
+    </hal>
+</manifest>

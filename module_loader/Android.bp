@@ -1,0 +1,9 @@
+cc_binary {
+    name: "lenovo_module_loader",
+    srcs: ["lenovo_module_loader.cpp"],
+    static_executable: true,
+    system_shared_libs: [],
+    static_libs: ["libbase"],
+    recovery_available: true,
+    cflags: ["-Wall", "-Werror"],
+}

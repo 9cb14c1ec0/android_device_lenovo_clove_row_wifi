@@ -1,0 +1,10 @@
+touch_compat/home/
+touch_compat/*.o
+touch_compat/*.ko
+touch_compat/*.mod.c
+touch_compat/.tmp_versions/
+touch_compat/modules.order
+touch_compat/Module.symvers
+prebuilt/boot.img
+*~
+*.swp

@@ -1,0 +1,12 @@
+Device makefiles, sepolicy, scripts, and the Lenovo touch compatibility
+shim in this repository are licensed under the Apache License, Version 2.0
+(the "License"); you may not use those files except in compliance with
+the License.
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Prebuilt kernel, DTB, vendor ramdisk fragments, firmware, Beanpod/TEEI
+binaries, shared libraries, and Trusted Applications under prebuilt/ are
+proprietary Lenovo, MediaTek, and/or Microtrust files extracted from
+stock TB305FU firmware. They are included only so this TWRP tree can be
+reproduced and are not licensed under Apache-2.0.
