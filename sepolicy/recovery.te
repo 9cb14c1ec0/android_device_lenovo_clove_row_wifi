@@ -82,6 +82,7 @@ allow recovery vold_metadata_file:file r_file_perms;
 # whole data_file_type attribute; that hits platform neverallows.
 allow recovery system_data_root_file:dir { r_dir_perms ioctl };
 allow recovery system_data_file:dir { r_dir_perms ioctl mounton };
+allow recovery system_data_file:file r_file_perms;
 allow recovery unencrypted_data_file:dir { r_dir_perms ioctl };
 allow recovery unencrypted_data_file:file create_file_perms;
 allow recovery media_userdir_file:dir r_dir_perms;
@@ -93,6 +94,11 @@ allow recovery system_userdir_file:dir r_dir_perms;
 allow recovery user_profile_root_file:dir r_dir_perms;
 allow recovery vendor_userdir_file:dir r_dir_perms;
 allow recovery vendor_data_file:dir { r_dir_perms ioctl };
+
+# TWRP's OpenRecoveryScript and ADB-backup control channels are ephemeral
+# FIFOs under /tmp, which is labeled tmpfs in this recovery ramdisk.
+allow recovery tmpfs:dir { search write add_name remove_name };
+allow recovery tmpfs:fifo_file create_file_perms;
 allowxperm recovery {
     system_data_root_file
     system_data_file

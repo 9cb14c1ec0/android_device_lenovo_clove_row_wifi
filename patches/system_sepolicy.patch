@@ -1,5 +1,34 @@
+diff --git a/private/property.te b/private/property.te
+index 2d030ab..bb0636a 100644
+--- a/private/property.te
++++ b/private/property.te
+@@ -3,6 +3,7 @@ system_internal_prop(adbd_prop)
+ system_internal_prop(apexd_payload_metadata_prop)
+ system_internal_prop(ctl_snapuserd_prop)
+ system_internal_prop(crashrecovery_prop)
++system_internal_prop(twrp_prop)
+ system_internal_prop(device_config_core_experiments_team_internal_prop)
+ system_internal_prop(device_config_lmkd_native_prop)
+ system_internal_prop(device_config_mglru_native_prop)
+@@ -756,4 +757,3 @@ neverallow {
+   -init
+   -vendor_init
+ } pm_archiving_enabled_prop:property_service set;
+-
+diff --git a/private/property_contexts b/private/property_contexts
+index 1ddde23..411e3fd 100644
+--- a/private/property_contexts
++++ b/private/property_contexts
+@@ -784,6 +784,7 @@ ro.rebootescrow.device u:object_r:rebootescrow_hal_prop:s0 exact string
+ ro.recovery.usb.vid          u:object_r:recovery_usb_config_prop:s0 exact string
+ ro.recovery.usb.adb.pid      u:object_r:recovery_usb_config_prop:s0 exact string
+ ro.recovery.usb.fastboot.pid u:object_r:recovery_usb_config_prop:s0 exact string
++twrp.                         u:object_r:twrp_prop:s0 prefix string
+ 
+ ro.storage_manager.enabled     u:object_r:storagemanager_config_prop:s0 exact bool
+ ro.storage_manager.show_opt_in u:object_r:storagemanager_config_prop:s0 exact bool
 diff --git a/private/recovery.te b/private/recovery.te
-index 2dba93b..689e573 100644
+index 2dba93b..c137e0c 100644
 --- a/private/recovery.te
 +++ b/private/recovery.te
 @@ -3,6 +3,16 @@ typeattribute recovery coredomain;
@@ -19,13 +48,23 @@ index 2dba93b..689e573 100644
    # Reboot the device
    set_prop(recovery, powerctl_prop)
  
-@@ -47,4 +47,19 @@ recovery_only(`
+@@ -47,4 +57,29 @@ recovery_only(`
  
    # Needed to read bootconfig parameters through libfs_mgr
    allow recovery proc_bootconfig:file r_file_perms;
 +
 +  # TWRP decrypts metadata encryption in-process via keystore2.
 +  # Both run as recovery, so they need the vold keystore2 namespace.
++  # Recovery also copies the Android keystore database into tmpfs so the
++  # recovery keystore2 instance can unwrap synthetic-password keys.
++  set_prop(recovery, restorecon_prop)
++  allow recovery keystore_data_file:dir r_dir_perms;
++  allow recovery keystore_data_file:file r_file_perms;
++  allow recovery locksettings_key:keystore2_key {
++    get_info
++    req_forced_op
++    use
++  };
 +  allow recovery vold_key:keystore2_key {
 +    convert_storage_key_to_ephemeral
 +    delete
@@ -39,32 +78,8 @@ index 2dba93b..689e573 100644
 +  get_prop(recovery, vendor_security_patch_level_prop)
 +  get_prop(recovery, keystore_config_prop)
  ')
-diff --git a/private/property.te b/private/property.te
-index 2d030ab..bb0636a 100644
---- a/private/property.te
-+++ b/private/property.te
-@@ -3,6 +3,7 @@ system_internal_prop(adbd_prop)
- system_internal_prop(apexd_payload_metadata_prop)
- system_internal_prop(ctl_snapuserd_prop)
- system_internal_prop(crashrecovery_prop)
-+system_internal_prop(twrp_prop)
- system_internal_prop(device_config_core_experiments_team_internal_prop)
- system_internal_prop(device_config_lmkd_native_prop)
- system_internal_prop(device_config_mglru_native_prop)
-diff --git a/private/property_contexts b/private/property_contexts
-index 1ddde23..411e3fd 100644
---- a/private/property_contexts
-+++ b/private/property_contexts
-@@ -784,6 +784,7 @@ ro.rebootescrow.device u:object_r:rebootescrow_hal_prop:s0 exact string
- ro.recovery.usb.vid          u:object_r:recovery_usb_config_prop:s0 exact string
- ro.recovery.usb.adb.pid      u:object_r:recovery_usb_config_prop:s0 exact string
- ro.recovery.usb.fastboot.pid u:object_r:recovery_usb_config_prop:s0 exact string
-+twrp.                         u:object_r:twrp_prop:s0 prefix string
- 
- ro.storage_manager.enabled     u:object_r:storagemanager_config_prop:s0 exact bool
- ro.storage_manager.show_opt_in u:object_r:storagemanager_config_prop:s0 exact bool
 diff --git a/public/domain.te b/public/domain.te
-index 0a2a5e5..4ada1a2 100644
+index 0a2a5e5..334cc6b 100644
 --- a/public/domain.te
 +++ b/public/domain.te
 @@ -620,8 +620,9 @@ neverallow {
@@ -117,7 +132,7 @@ index 47b8603..c02f9f5 100644
 -neverallow { domain -init -toolbox -vendor_init -vold } system_data_root_file:dir { write add_name remove_name };
 +neverallow { domain -init -toolbox -vendor_init -vold -recovery } system_data_root_file:dir { write add_name remove_name };
 diff --git a/public/keystore.te b/public/keystore.te
-index 7e964c2..4f6c66f 100644
+index 7e964c2..05a88ff 100644
 --- a/public/keystore.te
 +++ b/public/keystore.te
 @@ -13,16 +13,27 @@ allow keystore keystore_data_file:dir create_dir_perms;
@@ -155,6 +170,22 @@ index 7e964c2..4f6c66f 100644
  
  # Check SELinux permissions.
  selinux_check_access(keystore)
+@@ -36,11 +47,11 @@ r_dir_file(keystore, cgroup_v2)
+ ### Protect ourself from others
+ ###
+ 
+-neverallow { domain -keystore } keystore_data_file:dir ~{ open create read getattr setattr search relabelto ioctl };
+-neverallow { domain -keystore } keystore_data_file:notdevfile_class_set ~{ relabelto getattr };
++neverallow { domain -keystore -recovery } keystore_data_file:dir ~{ open create read getattr setattr search relabelto ioctl };
++neverallow { domain -keystore -recovery } keystore_data_file:notdevfile_class_set ~{ relabelto getattr };
+ 
+-neverallow { domain -keystore -init } keystore_data_file:dir *;
+-neverallow { domain -keystore -init } keystore_data_file:notdevfile_class_set *;
++neverallow { domain -keystore -init -recovery } keystore_data_file:dir *;
++neverallow { domain -keystore -init -recovery } keystore_data_file:notdevfile_class_set *;
+ 
+ # TODO(b/186868271): Remove the crash dump exception soon-ish (maybe by May 14, 2021?)
+ neverallow { domain userdebug_or_eng(`-crash_dump') } keystore:process ptrace;
 diff --git a/public/recovery.te b/public/recovery.te
 index 324320b..d8ba128 100755
 --- a/public/recovery.te
@@ -207,7 +238,7 @@ index 58153f7..07ffede 100644
  allow servicemanager dumpstate:fifo_file write;
  
 diff --git a/public/vold.te b/public/vold.te
-index ad6ef83..80eef8e 100644
+index ad6ef83..e057485 100644
 --- a/public/vold.te
 +++ b/public/vold.te
 @@ -55,17 +55,20 @@ allowxperm vold data_file_type:dir ioctl {
@@ -270,11 +301,15 @@ index ad6ef83..80eef8e 100644
  } vold_metadata_file:notdevfile_class_set ~{ relabelto getattr };
  
  neverallow {
-@@ -331,6 +339,7 @@ neverallow {
+@@ -331,9 +339,10 @@ neverallow {
      -kernel
      -vold
      -vold_prepare_subdirs
 +    -recovery
  } { vold_data_file vold_metadata_file }:notdevfile_class_set *;
  
- neverallow { domain -vold -init } restorecon_prop:property_service set;
+-neverallow { domain -vold -init } restorecon_prop:property_service set;
++neverallow { domain -vold -init -recovery } restorecon_prop:property_service set;
+ 
+ neverallow vold {
+   domain

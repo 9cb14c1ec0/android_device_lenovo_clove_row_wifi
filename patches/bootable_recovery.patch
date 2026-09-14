@@ -65,6 +65,25 @@ index fa62662..30d63ba 100644
      writepid /dev/cpuset/foreground/tasks
      seclabel u:r:recovery:s0
 +    stdio_to_kmsg
+diff --git a/gui/gui.cpp b/gui/gui.cpp
+index 874cdd9..bc0ccfe 100755
+--- a/gui/gui.cpp
++++ b/gui/gui.cpp
+@@ -416,12 +416,12 @@ static void setup_ors_command()
+ 
+ 	unlink(ORS_INPUT_FILE);
+ 	if (mkfifo(ORS_INPUT_FILE, 06660) != 0) {
+-		LOGINFO("Unable to mkfifo %s\n", ORS_INPUT_FILE);
++		LOGINFO("Unable to mkfifo %s: %s\n", ORS_INPUT_FILE, strerror(errno));
+ 		return;
+ 	}
+ 	unlink(ORS_OUTPUT_FILE);
+ 	if (mkfifo(ORS_OUTPUT_FILE, 06666) != 0) {
+-		LOGINFO("Unable to mkfifo %s\n", ORS_OUTPUT_FILE);
++		LOGINFO("Unable to mkfifo %s: %s\n", ORS_OUTPUT_FILE, strerror(errno));
+ 		unlink(ORS_INPUT_FILE);
+ 		return;
+ 	}
 diff --git a/libpixelflinger/codeflinger/CodeCache.cpp b/libpixelflinger/codeflinger/CodeCache.cpp
 index 7d40158..5295eb9 100644
 --- a/libpixelflinger/codeflinger/CodeCache.cpp
@@ -225,6 +244,20 @@ index e497df6..40f81c1 100644
              }
  #ifdef _EVENT_LOGGING
              printf("EV: %s => EV_ABS  ABS_MT_PRESSURE  %d\n", e->deviceName, ev->value);
+diff --git a/orscmd/orscmd.h b/orscmd/orscmd.h
+index e88d9a5..f9611cd 100755
+--- a/orscmd/orscmd.h
++++ b/orscmd/orscmd.h
+@@ -16,7 +16,7 @@
+ #ifndef __ORSCMD_H
+ #define __ORSCMD_H
+ 
+-#define ORS_INPUT_FILE "/system/bin/orsin"
+-#define ORS_OUTPUT_FILE "/system/bin/orsout"
++#define ORS_INPUT_FILE "/tmp/orsin"
++#define ORS_OUTPUT_FILE "/tmp/orsout"
+ 
+ #endif //__ORSCMD_H
 diff --git a/partition.cpp b/partition.cpp
 index 8c53567..246b961 100755
 --- a/partition.cpp

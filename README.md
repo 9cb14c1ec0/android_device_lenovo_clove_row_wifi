@@ -17,14 +17,17 @@ the recovery ramdisk fragment inside `vendor_boot`.
 - Metadata encryption unwrap (`dm-default-key` `/dev/block/mapper/userdata`)
 - TWRP mounts `/data` as f2fs from that mapper
 - User-0 DE key installation and `fscrypt_init_user0` complete under enforcing
-- TWRP enumerates user 0 and enters the real CE credential flow
+- Automatic no-lock/default-credential synthetic-password unwrap
+- User-0 CE key installation and readable `/data/media/0` + `/data/user/0`
+- Decryption completion properties report success under enforcing
 
 ## What does not work yet
 
-- Credential-encrypted storage still needs a live test with the tablet's real
-  PIN/password/pattern. The default credential correctly fails, so filenames
-  remain encoded until that test succeeds. Do not treat this as a finished
-  decrypting recovery yet.
+- PIN/password/pattern decryption has not been tested because this tablet has
+  no lock configured. Automatic no-lock CE decryption is verified.
+- The ADB `twrp decrypt` command currently crashes the main recovery process in
+  a DRM page flip; use automatic startup decryption or the GUI.
+- EROFS logical partitions still need follow-up mount-policy work in the UI.
 - Do not format `/data` or `/metadata`. Slot B is the stock fallback;
   flash experimental images to **slot A only**.
 
@@ -34,7 +37,7 @@ Known-good touch-only fallback SHA-256 (no crypto):
 
 Current experimental crypto image SHA-256:
 
-`c34feb3189cd84dcb6d6c65f42dcc39ea934f54d0a9e496dd1060888ec66c4eb`
+`61c5669125984f96574f7d3f47659a581471d2a516d6ce199c49b7b52828fe89`
 
 Size of a packed `vendor_boot` image is exactly 67,108,864 bytes.
 
@@ -71,8 +74,8 @@ in `patches/BASE_REVS.txt`. They cover:
 | `build/make` | Do not rsync a host `vendor/` over the recovery ramdisk vendor tree |
 | `system/logging` | logd must not FATAL on missing task profiles / already-true props |
 | `system/security` | `libkm_compat` talks to HIDL Keymaster 4.1 via `defaultServiceManager1_2()` |
-| `system/sepolicy` | recovery owns Binder + Keymaster/keystore2 + metadata/FBE ioctls |
-| `system/vold` | non-secret user-0 FBE phase diagnostics for enforcing recovery bring-up |
+| `system/sepolicy` | recovery owns Binder + Keymaster/keystore2, read-only locksettings key access, metadata/FBE ioctls |
+| `system/vold` | metadata/DE/CE setup, synthetic-password handle fallback, safe keystore DB copy |
 
 ## Build
 
@@ -143,7 +146,7 @@ sha256sum -c SHA256SUMS
 fastboot getvar product          # must be clove_row_wifi
 fastboot getvar current-slot     # must be a
 fastboot flash lk_a lk_a-dmverity-patched-TB305FU-c4fe7ca1.bin
-fastboot flash vendor_boot_a vendor_boot-twrp-TB305FU-beta2-c34feb31.img
+fastboot flash vendor_boot_a vendor_boot-twrp-TB305FU-beta3-61c56691.img
 fastboot reboot recovery
 ```
 
