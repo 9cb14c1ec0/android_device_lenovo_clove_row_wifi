@@ -1,6 +1,6 @@
-# TWRP 14.1 for Lenovo Tab Plus (TB305FU / clove_row_wifi)
+# TWRP 14.1 for Lenovo Tab One (TB305FU / clove_row_wifi)
 
-Experimental TWRP 14.1 recovery for the Lenovo Tab Plus Wi-Fi
+Experimental TWRP 14.1 recovery for the Lenovo Tab One Wi-Fi
 (`TB305FU`, device `clove_row_wifi`).
 
 The tablet is an MT6768/MT8786-family device on Lenovo Android 15
