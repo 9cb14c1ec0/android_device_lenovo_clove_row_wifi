@@ -11,6 +11,7 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/recovery/root/system/etc/lenovo-modules.touch-shim:$(TARGET_COPY_OUT_RECOVERY)/root/system/etc/lenovo-modules.touch-shim \
     $(LOCAL_PATH)/recovery/root/system/bin/teei_wait_unlock.sh:$(TARGET_COPY_OUT_RECOVERY)/root/system/bin/teei_wait_unlock.sh \
     $(LOCAL_PATH)/recovery/root/system/bin/beanpod_keymaster.sh:$(TARGET_COPY_OUT_RECOVERY)/root/system/bin/beanpod_keymaster.sh \
+    $(LOCAL_PATH)/recovery/root/system/bin/beanpod_gatekeeper.sh:$(TARGET_COPY_OUT_RECOVERY)/root/system/bin/beanpod_gatekeeper.sh \
     $(LOCAL_PATH)/recovery/root/vendor/etc/vintf/manifest.xml:$(TARGET_COPY_OUT_RECOVERY)/root/vendor/etc/vintf/manifest.xml \
     $(LOCAL_PATH)/recovery/root/vendor/default.prop:$(TARGET_COPY_OUT_RECOVERY)/root/vendor/default.prop \
     $(LOCAL_PATH)/recovery/root/system/etc/vintf/manifest.xml:$(TARGET_COPY_OUT_RECOVERY)/root/system/etc/vintf/manifest.xml \
@@ -18,6 +19,7 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/prebuilt/firmware/ili9882U.bin:$(TARGET_COPY_OUT_RECOVERY)/root/vendor/firmware/ili9882U.bin \
     $(CRYPTO_PREBUILT)/vendor/bin/teei_daemon:$(TARGET_COPY_OUT_RECOVERY)/root/system/bin/teei_daemon \
     $(CRYPTO_PREBUILT)/vendor/bin/hw/android.hardware.keymaster@4.1-service.beanpod:$(TARGET_COPY_OUT_RECOVERY)/root/system/bin/android.hardware.keymaster@4.1-service.beanpod \
+    $(CRYPTO_PREBUILT)/vendor/bin/hw/android.hardware.gatekeeper-service.beanpod:$(TARGET_COPY_OUT_RECOVERY)/root/system/bin/android.hardware.gatekeeper-service.beanpod \
     $(CRYPTO_PREBUILT)/vendor/lib64/libTEECommon.so:$(TARGET_COPY_OUT_RECOVERY)/root/system/lib64/libTEECommon.so \
     $(CRYPTO_PREBUILT)/vendor/lib64/libteei_daemon_vfs.so:$(TARGET_COPY_OUT_RECOVERY)/root/system/lib64/libteei_daemon_vfs.so \
     $(CRYPTO_PREBUILT)/vendor/lib64/libkeymaster4.so:$(TARGET_COPY_OUT_RECOVERY)/root/system/lib64/libkeymaster4.so \

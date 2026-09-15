@@ -18,13 +18,15 @@ the recovery ramdisk fragment inside `vendor_boot`.
 - TWRP mounts `/data` as f2fs from that mapper
 - User-0 DE key installation and `fscrypt_init_user0` complete under enforcing
 - Automatic no-lock/default-credential synthetic-password unwrap
+- Pattern credential verification through the stock Android 15 AIDL Gatekeeper
+- Pattern-protected synthetic-password unwrap and user-0 CE key installation
 - User-0 CE key installation and readable `/data/media/0` + `/data/user/0`
 - Decryption completion properties report success under enforcing
 
 ## What does not work yet
 
-- PIN/password/pattern decryption has not been tested because this tablet has
-  no lock configured. Automatic no-lock CE decryption is verified.
+- PIN and password credentials have not been tested yet. Pattern and automatic
+  no-lock/default-credential decryption are verified under enforcing.
 - The ADB `twrp decrypt` command currently crashes the main recovery process in
   a DRM page flip; use automatic startup decryption or the GUI.
 - EROFS logical partitions still need follow-up mount-policy work in the UI.
@@ -37,7 +39,7 @@ Known-good touch-only fallback SHA-256 (no crypto):
 
 Current experimental crypto image SHA-256:
 
-`61c5669125984f96574f7d3f47659a581471d2a516d6ce199c49b7b52828fe89`
+`51d192ea04bfd385ce833ae585a038011facba97c68d18a2ada4437e4cd5370d`
 
 Size of a packed `vendor_boot` image is exactly 67,108,864 bytes.
 
@@ -70,12 +72,12 @@ in `patches/BASE_REVS.txt`. They cover:
 
 | Project | Why |
 | --- | --- |
-| `bootable/recovery` | DRM/touch, metadata mapper fallback, logd/keystore2 packaging |
+| `bootable/recovery` | DRM/touch, metadata mapper fallback, logd/keystore2 and AIDL Gatekeeper packaging |
 | `build/make` | Do not rsync a host `vendor/` over the recovery ramdisk vendor tree |
 | `system/logging` | logd must not FATAL on missing task profiles / already-true props |
 | `system/security` | `libkm_compat` talks to HIDL Keymaster 4.1 via `defaultServiceManager1_2()` |
-| `system/sepolicy` | recovery owns Binder + Keymaster/keystore2, read-only locksettings key access, metadata/FBE ioctls |
-| `system/vold` | metadata/DE/CE setup, synthetic-password handle fallback, safe keystore DB copy |
+| `system/sepolicy` | recovery owns Binder + Keymaster/Gatekeeper/keystore2, auth-token submission, locksettings key access, metadata/FBE ioctls |
+| `system/vold` | metadata/DE/CE setup, AIDL Gatekeeper credential verification, synthetic-password handle fallback, safe keystore DB copy |
 
 ## Build
 
@@ -146,7 +148,7 @@ sha256sum -c SHA256SUMS
 fastboot getvar product          # must be clove_row_wifi
 fastboot getvar current-slot     # must be a
 fastboot flash lk_a lk_a-dmverity-patched-TB305FU-c4fe7ca1.bin
-fastboot flash vendor_boot_a vendor_boot-twrp-TB305FU-beta3-61c56691.img
+fastboot flash vendor_boot_a vendor_boot-twrp-TB305FU-beta4-51d192ea.img
 fastboot reboot recovery
 ```
 
@@ -168,8 +170,11 @@ changes do not replace the LK patch.
   `fileencryption=aes-256-xts:aes-256-cts:v2,keydirectory=/metadata/vold/metadata_encryption`
 - Beanpod Keymaster is HIDL 4.1 on hwbinder, not VendorBinder. Do not
   start `vndservicemanager`.
-- The HAL must be exec'd with `LD_LIBRARY_PATH=/vendor/lib64:/system/lib64`
-  so vendor `libc++` is loaded.
+- Beanpod Gatekeeper is Android 15 AIDL on Binder. It verifies pattern
+  credentials through the secure Gatekeeper TA/RPMB implementation.
+- The HAL wrappers must use `LD_LIBRARY_PATH=/vendor/lib64:/system/lib64` so
+  vendor Android 15 `libc++` is loaded while Gatekeeper falls through to
+  recovery's compatible `libbinder`.
 - `vendor/*.prop` cannot override `ro.build.*` (partition property
   rules). `/prop.default` is the system source that Configure reads.
 - `ro.crypto.type=file` must be present in initial `/prop.default`; setting it

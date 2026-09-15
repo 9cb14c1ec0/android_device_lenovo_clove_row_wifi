@@ -31,6 +31,7 @@ on post-fs
     start teei_daemon
     exec_start teei_wait_unlock
     start beanpod_keymaster
+    start beanpod_gatekeeper
 
 on late-init
     stop vndservicemanager
@@ -56,6 +57,13 @@ service teei_wait_unlock /system/bin/sh /system/bin/teei_wait_unlock.sh
     seclabel u:r:recovery:s0
 
 service beanpod_keymaster /system/bin/sh /system/bin/beanpod_keymaster.sh
+    disabled
+    user root
+    group root
+    seclabel u:r:recovery:s0
+    stdio_to_kmsg
+
+service beanpod_gatekeeper /system/bin/sh /system/bin/beanpod_gatekeeper.sh
     disabled
     user root
     group root

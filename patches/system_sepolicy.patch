@@ -102,6 +102,23 @@ index 0a2a5e5..334cc6b 100644
      -vold # vold creates per-user storage for both system and vendor
      -vold_prepare_subdirs
      } {
+diff --git a/public/hal_gatekeeper.te b/public/hal_gatekeeper.te
+index fc23e64..caab5da 100644
+--- a/public/hal_gatekeeper.te
++++ b/public/hal_gatekeeper.te
+@@ -1,7 +1,11 @@
+ binder_call(hal_gatekeeper_client, hal_gatekeeper_server)
+ 
+ hal_attribute_hwservice(hal_gatekeeper, hal_gatekeeper_hwservice)
+-hal_attribute_service(hal_gatekeeper, hal_gatekeeper_service)
++# Expanded from hal_attribute_service() so the stock Android 15 AIDL
++# Gatekeeper can run as recovery without making recovery a HAL server domain.
++allow hal_gatekeeper_client hal_gatekeeper_service:service_manager find;
++allow hal_gatekeeper_server hal_gatekeeper_service:service_manager { add find };
++neverallow { domain -hal_gatekeeper_server -recovery } hal_gatekeeper_service:service_manager add;
+ binder_call(hal_gatekeeper_server, servicemanager)
+ 
+ # TEE access.
 diff --git a/public/hal_keymaster.te b/public/hal_keymaster.te
 index 3e164ad..4468d60 100644
 --- a/public/hal_keymaster.te

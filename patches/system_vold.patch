@@ -1,8 +1,29 @@
+diff --git a/Android.bp b/Android.bp
+index 200eb67..f371593 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -175,6 +175,7 @@ cc_library_static {
+     },
+     shared_libs: [
+         "android.hardware.confirmationui@1.0",
++        "android.hardware.gatekeeper-V1-ndk",
+         "android.hardware.gatekeeper@1.0",
+         "android.hardware.health.storage@1.0",
+         "android.hardware.health.storage-V1-ndk",
 diff --git a/Decrypt.cpp b/Decrypt.cpp
-index 0a5afb0..438fa9e 100755
+index 0a5afb0..d3dabcf 100755
 --- a/Decrypt.cpp
 +++ b/Decrypt.cpp
-@@ -467,12 +467,21 @@ namespace keystore {
+@@ -52,6 +52,8 @@
+ #include <base/threading/platform_thread.h>
+ #include <android/hardware/confirmationui/1.0/types.h>
+ #include <aidl/android/hardware/security/keymint/HardwareAuthToken.h>
++#include <aidl/android/hardware/gatekeeper/GatekeeperVerifyResponse.h>
++#include <aidl/android/hardware/gatekeeper/IGatekeeper.h>
+ #include <aidl/android/security/authorization/IKeystoreAuthorization.h>
+ #include <aidl/android/security/apc/BnConfirmationCallback.h>
+ #include <aidl/android/system/keystore2/IKeystoreService.h>
+@@ -467,12 +469,21 @@ namespace keystore {
  		std::string keystore_path = "/tmp/misc/keystore/";
  		std::string dst = keystore_path + "persistent.sqlite";
  		std::string src = "/data/misc/keystore/persistent.sqlite";
@@ -29,7 +50,7 @@ index 0a5afb0..438fa9e 100755
  	}
  
  	/* C++ replacement for function of the same name
-@@ -560,14 +569,14 @@ namespace keystore {
+@@ -560,14 +571,14 @@ namespace keystore {
  				keyResponse.metadata.key, begin_params.vector_data(), true,
  				&encOperationResponse);
  			if (!begin_rc.isOk()) {
@@ -46,6 +67,101 @@ index 0a5afb0..438fa9e 100755
  				return disk_decryption_secret_key;
  			}
  
+@@ -790,12 +801,6 @@ bool Decrypt_User_Synth_Pass(const userid_t user_id, const std::string& Password
+ 		if (Password != "!") {
+ 			int ret = -1;
+ 			bool request_reenroll = false;
+-			android::sp<android::hardware::gatekeeper::V1_0::IGatekeeper> gk_device;
+-			gk_device = ::android::hardware::gatekeeper::V1_0::IGatekeeper::getService();
+-			if (gk_device == nullptr) {
+-				printf("failed to get gatekeeper service\n");
+-				return Free_Return(retval, weaver_key, &pwd);
+-			}
+ 			if (pwd.handle_len <= 0) {
+ 				printf("no password handle supplied\n");
+ 				return Free_Return(retval, weaver_key, &pwd);
+@@ -810,11 +815,58 @@ bool Decrypt_User_Synth_Pass(const userid_t user_id, const std::string& Password
+ 			android::hardware::hidl_vec<uint8_t> gk_pwd_token_hidl;
+ 			GKResponse gkResponse;
+ 			gk_pwd_token_hidl.setToExternal(const_cast<uint8_t *>((const uint8_t *)gk_pwd_token), SHA512_DIGEST_LENGTH);
+-			android::hardware::Return<void> hwRet =
+-				gk_device->verify(fakeUid(user_id), 0 /* challenge */,
+-								  pwd_handle_hidl,
+-								  gk_pwd_token_hidl,
+-								  [&gkResponse]
++			::ndk::SpAIBinder gkBinder(
++					AServiceManager_checkService("android.hardware.gatekeeper.IGatekeeper/default"));
++			auto aidlGatekeeper =
++					aidl::android::hardware::gatekeeper::IGatekeeper::fromBinder(gkBinder);
++			if (aidlGatekeeper) {
++				aidl::android::hardware::gatekeeper::GatekeeperVerifyResponse rsp;
++				std::vector<uint8_t> pwd_handle(
++						(const uint8_t*)pwd.password_handle,
++						(const uint8_t*)pwd.password_handle + pwd.handle_len);
++				std::vector<uint8_t> token(
++						(const uint8_t*)gk_pwd_token,
++						(const uint8_t*)gk_pwd_token + SHA512_DIGEST_LENGTH);
++				auto status = aidlGatekeeper->verify(fakeUid(user_id), 0 /* challenge */,
++						pwd_handle, token, &rsp);
++				free(gk_pwd_token);
++				if (!status.isOk()) {
++					printf("AIDL Gatekeeper verify failed: %s\n", status.getDescription().c_str());
++					return Free_Return(retval, weaver_key, &pwd);
++				}
++				if (rsp.statusCode < aidl::android::hardware::gatekeeper::IGatekeeper::STATUS_OK) {
++					printf("AIDL Gatekeeper rejected credential: status=%d timeout=%d\n",
++							rsp.statusCode, rsp.timeoutMs);
++					return Free_Return(retval, weaver_key, &pwd);
++				}
++				printf("AIDL Gatekeeper status ok\n");
++				::ndk::SpAIBinder authzBinder(
++						AServiceManager_checkService("android.security.authorization"));
++				auto authz = aidl::android::security::authorization::IKeystoreAuthorization::fromBinder(
++						authzBinder);
++				if (!authz) {
++					printf("error: could not connect to keystore authorization service\n");
++					return Free_Return(retval, weaver_key, &pwd);
++				}
++				auto authzStatus = authz->addAuthToken(rsp.hardwareAuthToken);
++				if (!authzStatus.isOk()) {
++					printf("Failed to add Gatekeeper auth token: %s\n",
++							authzStatus.getDescription().c_str());
++					return Free_Return(retval, weaver_key, &pwd);
++				}
++			} else {
++				android::sp<android::hardware::gatekeeper::V1_0::IGatekeeper> gk_device =
++						::android::hardware::gatekeeper::V1_0::IGatekeeper::getService();
++				if (gk_device == nullptr) {
++					printf("failed to get AIDL or HIDL gatekeeper service\n");
++					free(gk_pwd_token);
++					return Free_Return(retval, weaver_key, &pwd);
++				}
++				android::hardware::Return<void> hwRet =
++					gk_device->verify(fakeUid(user_id), 0 /* challenge */,
++									  pwd_handle_hidl,
++									  gk_pwd_token_hidl,
++									  [&gkResponse]
+ 									// []
+ 									(const android::hardware::gatekeeper::V1_0::GatekeeperResponse &rsp) {
+ 										// ret = static_cast<int>(rsp.code); // propagate errors
+@@ -850,11 +902,12 @@ bool Decrypt_User_Synth_Pass(const userid_t user_id, const std::string& Password
+ 											}
+ 										}
+ 									}
+-								 );
+-			free(gk_pwd_token);
+-			if (!hwRet.isOk()) {
+-				printf("gatekeeper verification failed\n");
+-				return Free_Return(retval, weaver_key, &pwd);
++									 );
++				free(gk_pwd_token);
++				if (!hwRet.isOk()) {
++					printf("gatekeeper verification failed\n");
++					return Free_Return(retval, weaver_key, &pwd);
++				}
+ 			}
+ 		}
+ 	}
 diff --git a/FsCrypt.cpp b/FsCrypt.cpp
 index 71bdbe3..efd069e 100644
 --- a/FsCrypt.cpp
